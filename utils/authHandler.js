@@ -15,11 +15,11 @@ module.exports = {
         }
 
         try {
-            
+
             let result = jwt.verify(key, 'secretKey')
             if (result.exp * 1000 < Date.now()) {
                 res.status(404).send("ban chua dang nhap")
-                return;s
+                return; s
             }
             let user = await userController.GetUserById(result.id);
             if (!user) {
@@ -33,5 +33,16 @@ module.exports = {
             return;
         }
 
+    },
+    CheckRole: function (requiredRole) {
+        return function (req, res, next) {
+            let user = req.user;
+            let currentRole = user.role.name;
+            if (requiredRole.includes(currentRole)) {
+                next()
+            } else {
+                res.status(403).send("ban khong co quyen")
+            }
+        }
     }
 }

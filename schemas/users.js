@@ -52,7 +52,9 @@ const userSchema = new mongoose.Schema(
     isDeleted: {
       type: Boolean,
       default: false
-    }
+    },
+    forgotPasswordToken: String,
+    forgotPasswordTokenExp: Date
   },
   {
     timestamps: true

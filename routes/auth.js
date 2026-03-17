@@ -1,11 +1,13 @@
 var express = require("express");
 var router = express.Router();
 let userController = require('../controllers/users')
-let { RegisterValidator, validationResult } = require('../utils/validatorHandler')
+let { RegisterValidator, validationResult, ChangPasswordValidator } = require('../utils/validatorHandler')
 let { CheckLogin } = require('../utils/authHandler')
 let jwt = require('jsonwebtoken')
+let bcrypt = require('bcrypt')
 let fs = require('fs')
-
+let crypto = require('crypto')
+let {sendMail} = require('../utils/mailHandler')
 router.post('/register', RegisterValidator, validationResult, async function (req, res, next) {
     try {
         let newItem = await userController.CreateAnUser(
@@ -35,10 +37,9 @@ router.post('/login', async function (req, res, next) {
             return;
         }
         let token = jwt.sign({
-            id:result._id
-        },'secretKey',{
-            expiresIn:'1d',
-            algorithm:'RS256'
+            id: result._id
+        }, 'secretKey', {
+            expiresIn: '1d'
         })
         res.cookie("LOGIN_NNPTUD_S3", token, {
             maxAge: 24 * 60 * 60 * 1000,
@@ -61,5 +62,44 @@ router.post('/logout', CheckLogin, function (req, res, next) {
     })
     res.send("da logout ")
 })
+router.post('/changepassword', CheckLogin,
+    ChangPasswordValidator, validationResult
+    , async function (req, res, next) {
+        let { newpassword, oldpassword } = req.body;
+        let user = req.user;
+        if (bcrypt.compareSync(oldpassword, user.password)) {
+            user.password = newpassword;
+            await user.save();
+            res.send("doi pass thanh cong")
+        } else {
+            res.status(404).send("old password khog dung")
+        }
+    })
 
+router.post('/forgotpassword', async function (req, res, next) {
+    let { email } = req.body;
+    let user = await userController.FindUserByEmail(email);
+    if (user) {
+        user.forgotPasswordToken = crypto.randomBytes(32).toString('hex');
+        user.forgotPasswordTokenExp = Date.now() + 10 * 60 * 1000;
+        let url = "http://localhost:3000/api/v1/auth/resetpassword/"+user.forgotPasswordToken
+        await user.save();
+        await sendMail(user.email,url)
+    }
+    res.send("check email")
+})
+router.post('/resetpassword/:token', async function (req, res, next) {
+    let { password } = req.body;
+    let user = await userController.FindUserByToken(req.params.token);
+    if (user) {
+        user.password = password
+        user.forgotPasswordToken = null;
+        user.forgotPasswordTokenExp = null;
+        await user.save();
+        res.send("da cap nhat")
+    }else{
+        res.status(404).send("token loi")
+    }
+    
+})
 module.exports = router;

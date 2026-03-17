@@ -23,6 +23,21 @@ module.exports = {
             isDeleted: false,
             username: username
         })
+    }, FindUserByEmail: async function (email) {
+        return await userModel.findOne({
+            isDeleted: false,
+            email: email
+        })
+    },
+    FindUserByToken: async function (token) {
+        let result =  await userModel.findOne({
+            isDeleted: false,
+            forgotPasswordToken: token
+        })
+        if(result.forgotPasswordTokenExp>Date.now()){
+            return result;
+        }
+        return false
     },
     CompareLogin: async function (user, password) {
         if (bcrypt.compareSync(password, user.password)) {
@@ -43,7 +58,7 @@ module.exports = {
             let user = await userModel.findOne({
                 _id: id,
                 isDeleted: false
-            })
+            }).populate('role')
             return user;
         } catch (error) {
             return false;
