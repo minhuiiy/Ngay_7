@@ -60,16 +60,16 @@ router.post('/', async (req, res) => {
         console.log(newProducts);
         let newInventory = new inventorySchema({
             product: newProducts._id,
-            stock: -1
+            stock: 0
         })
         await newInventory.save({ session });
         await newInventory.populate('product')
-        session.commitTransaction();
-        session.endSession()
+        await session.commitTransaction();
+        await session.endSession()
         res.send(newInventory)
     } catch (error) {
-        session.abortTransaction();
-        session.endSession()
+        await session.abortTransaction();
+        await session.endSession()
         res.status(404).send(error.message)
     }
 })

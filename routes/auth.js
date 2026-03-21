@@ -7,15 +7,32 @@ let jwt = require('jsonwebtoken')
 let bcrypt = require('bcrypt')
 let fs = require('fs')
 let crypto = require('crypto')
-let {sendMail} = require('../utils/mailHandler')
+let { sendMail } = require('../utils/mailHandler')
+let mongoose = require('mongoose');
+let cartSchema = require('../schemas/carts')
+
+
+
 router.post('/register', RegisterValidator, validationResult, async function (req, res, next) {
+    let session = await mongoose.startSession();
+    session.startTransaction()
     try {
         let newItem = await userController.CreateAnUser(
             req.body.username, req.body.password, req.body.email,
-            "69af870aaa71c433fa8dda8e"
+            "69af870aaa71c433fa8dda8e", session
         )
-        res.send(newItem);
+        let newCart = new cartSchema({
+            user: newItem._id
+        })
+        await newCart.save({ session });
+        await newCart.populate('user');
+        await session.commitTransaction()
+        await session.endSession()
+        res.send(newCart);
+
     } catch (err) {
+        await session.abortTransaction()
+        await session.endSession()
         res.status(400).send({ message: err.message });
     }
 })
@@ -82,9 +99,9 @@ router.post('/forgotpassword', async function (req, res, next) {
     if (user) {
         user.forgotPasswordToken = crypto.randomBytes(32).toString('hex');
         user.forgotPasswordTokenExp = Date.now() + 10 * 60 * 1000;
-        let url = "http://localhost:3000/api/v1/auth/resetpassword/"+user.forgotPasswordToken
+        let url = "http://localhost:3000/api/v1/auth/resetpassword/" + user.forgotPasswordToken
         await user.save();
-        await sendMail(user.email,url)
+        await sendMail(user.email, url)
     }
     res.send("check email")
 })
@@ -97,9 +114,9 @@ router.post('/resetpassword/:token', async function (req, res, next) {
         user.forgotPasswordTokenExp = null;
         await user.save();
         res.send("da cap nhat")
-    }else{
+    } else {
         res.status(404).send("token loi")
     }
-    
+
 })
 module.exports = router;
