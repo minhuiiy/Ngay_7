@@ -16,7 +16,7 @@ router.get("/", CheckLogin, CheckRole("ADMIN", "MODERATOR"), async function (req
   res.send(users);
 });
 
-router.get("/:id",CheckLogin,CheckRole("ADMIN"), async function (req, res, next) {
+router.get("/:id", CheckLogin, CheckRole("ADMIN"), async function (req, res, next) {
   try {
     let result = await userModel
       .find({ _id: req.params.id, isDeleted: false })
@@ -39,6 +39,26 @@ router.post("/", CreateUserValidator, validationResult, async function (req, res
     res.send(newItem);
   } catch (err) {
     res.status(400).send({ message: err.message });
+  }
+});
+
+let multer = require('multer');
+let upload = multer({ dest: 'uploads/' }); // Lưa file tạm thời ở thư mục uploads/
+
+router.post("/import", upload.single('file'), async function (req, res, next) {
+  try {
+    if (!req.file) {
+      return res.status(400).send({ message: "Vui lòng đính kèm file theo key 'file' (form-data)" });
+    }
+    
+    let result = await userController.ImportUsersFromFile(req.file.path);
+    if (result.success) {
+      res.send(result);
+    } else {
+      res.status(400).send(result);
+    }
+  } catch (err) {
+    res.status(500).send({ message: err.message });
   }
 });
 
